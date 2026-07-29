@@ -1,0 +1,6 @@
+{
+  "name": "Three Brothers",
+  "description": "Three Brothers E-Commerce & Clothing Store - Browse products, manage inventory, place orders, and direct checkout via WhatsApp.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
