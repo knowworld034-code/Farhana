@@ -1,8 +1,10 @@
 package com.example.ui.screens
 
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -16,7 +18,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.ShoppingBag
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -25,7 +26,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -36,11 +36,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.R
@@ -53,9 +55,17 @@ fun LoginScreen(
     onLoginSubmitted: (email: String, pass: String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var email by remember { mutableStateOf("farhana@threebrothers.com") }
-    var password by remember { mutableStateOf("123456") }
+    val context = LocalContext.current
+    var isSignUpMode by remember { mutableStateOf(false) }
+
+    // Saved credentials in screen state (simulating localStorage / SharedPreferences)
+    var savedEmail by remember { mutableStateOf("farhana@threebrothers.com") }
+    var savedPassword by remember { mutableStateOf("123456") }
+
+    var emailInput by remember { mutableStateOf(savedEmail) }
+    var passwordInput by remember { mutableStateOf(savedPassword) }
     var errorMessage by remember { mutableStateOf("") }
+    var infoMessage by remember { mutableStateOf("") }
 
     Box(
         modifier = modifier
@@ -68,7 +78,7 @@ fun LoginScreen(
             colors = CardDefaults.cardColors(containerColor = Color.White),
             elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
             modifier = Modifier
-                .fillMaxWidth(0.9f)
+                .fillMaxWidth(0.92f)
                 .padding(16.dp)
                 .border(1.dp, Color(0xFFDDDDDD), RoundedCornerShape(12.dp))
         ) {
@@ -96,33 +106,39 @@ fun LoginScreen(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Text(
-                    text = "Three Brothers - Login",
+                    text = if (isSignUpMode) "Three Brothers - Owner Sign Up" else "Three Brothers - Owner Login",
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF333333)
+                    color = Color(0xFF333333),
+                    textAlign = TextAlign.Center
                 )
 
                 Spacer(modifier = Modifier.height(6.dp))
 
                 Text(
-                    text = "Garments & E-Commerce Portal",
+                    text = if (isSignUpMode)
+                        "Create your secure account first to manage your store."
+                    else
+                        "Enter your registered email and password to log in.",
                     fontSize = 12.sp,
-                    color = Color.Gray
+                    color = Color.Gray,
+                    textAlign = TextAlign.Center
                 )
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(20.dp))
 
                 OutlinedTextField(
-                    value = email,
-                    onValueChange = { email = it; errorMessage = "" },
-                    label = { Text("Email or Username") },
+                    value = emailInput,
+                    onValueChange = { emailInput = it; errorMessage = ""; infoMessage = "" },
+                    label = { Text(if (isSignUpMode) "Your Email:" else "Email:") },
+                    placeholder = { Text("Enter your email") },
                     leadingIcon = {
                         Icon(imageVector = Icons.Default.Person, contentDescription = "User", tint = AmazonNavy)
                     },
                     singleLine = true,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .testTag("login_email_input"),
+                        .testTag(if (isSignUpMode) "su_email_input" else "login_email_input"),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = BrandOrange,
                         focusedLabelColor = BrandOrange
@@ -132,9 +148,10 @@ fun LoginScreen(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 OutlinedTextField(
-                    value = password,
-                    onValueChange = { password = it; errorMessage = "" },
-                    label = { Text("Password") },
+                    value = passwordInput,
+                    onValueChange = { passwordInput = it; errorMessage = ""; infoMessage = "" },
+                    label = { Text(if (isSignUpMode) "Create Password:" else "Password:") },
+                    placeholder = { Text(if (isSignUpMode) "Create a password" else "Enter your password") },
                     leadingIcon = {
                         Icon(imageVector = Icons.Default.Lock, contentDescription = "Password", tint = AmazonNavy)
                     },
@@ -142,7 +159,7 @@ fun LoginScreen(
                     singleLine = true,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .testTag("login_password_input"),
+                        .testTag(if (isSignUpMode) "su_password_input" else "login_password_input"),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = BrandOrange,
                         focusedLabelColor = BrandOrange
@@ -154,45 +171,115 @@ fun LoginScreen(
                     Text(
                         text = errorMessage,
                         color = MaterialTheme.colorScheme.error,
-                        fontSize = 12.sp
+                        fontSize = 12.sp,
+                        textAlign = TextAlign.Center
+                    )
+                }
+
+                if (infoMessage.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = infoMessage,
+                        color = Color(0xFF25D366),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
                     )
                 }
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                Button(
-                    onClick = {
-                        if (email.isBlank() || password.isBlank()) {
-                            errorMessage = "Please enter both email and password!"
-                        } else {
-                            onLoginSubmitted(email, password)
-                        }
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = BrandOrange,
-                        contentColor = Color.White
-                    ),
-                    shape = RoundedCornerShape(4.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(48.dp)
-                        .testTag("login_submit_button")
-                ) {
+                if (isSignUpMode) {
+                    Button(
+                        onClick = {
+                            if (emailInput.isBlank() || passwordInput.isBlank()) {
+                                errorMessage = "Please enter both email and password for sign up!"
+                            } else {
+                                savedEmail = emailInput.trim()
+                                savedPassword = passwordInput.trim()
+                                infoMessage = "Sign Up Successful! Account created. Please log in."
+                                Toast.makeText(context, "Sign Up Successful!", Toast.LENGTH_SHORT).show()
+                                isSignUpMode = false
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = BrandOrange,
+                            contentColor = Color.White
+                        ),
+                        shape = RoundedCornerShape(4.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                            .testTag("signup_submit_button")
+                    ) {
+                        Text(
+                            text = "Sign Up",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
                     Text(
-                        text = "Login to Website",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
+                        text = "Already have an account? Login here",
+                        fontSize = 14.sp,
+                        color = Color(0xFF0066C0),
+                        textDecoration = TextDecoration.Underline,
+                        modifier = Modifier
+                            .clickable {
+                                isSignUpMode = false
+                                errorMessage = ""
+                                infoMessage = ""
+                            }
+                            .testTag("toggle_login_link")
+                    )
+                } else {
+                    Button(
+                        onClick = {
+                            val cleanEmail = emailInput.trim()
+                            val cleanPass = passwordInput.trim()
+                            if (cleanEmail.isBlank() || cleanPass.isBlank()) {
+                                errorMessage = "Please enter both email and password!"
+                            } else if (savedEmail.isNotEmpty() && (cleanEmail != savedEmail || cleanPass != savedPassword)) {
+                                errorMessage = "Incorrect Email or Password! Please try again."
+                            } else {
+                                onLoginSubmitted(cleanEmail, cleanPass)
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = BrandOrange,
+                            contentColor = Color.White
+                        ),
+                        shape = RoundedCornerShape(4.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                            .testTag("login_submit_button")
+                    ) {
+                        Text(
+                            text = "Login to Store",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Text(
+                        text = "Don't have an account? Sign Up here",
+                        fontSize = 14.sp,
+                        color = Color(0xFF0066C0),
+                        textDecoration = TextDecoration.Underline,
+                        modifier = Modifier
+                            .clickable {
+                                isSignUpMode = true
+                                errorMessage = ""
+                                infoMessage = ""
+                            }
+                            .testTag("toggle_signup_link")
                     )
                 }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Text(
-                    text = "(You can type any email & password to enter)",
-                    fontSize = 12.sp,
-                    color = Color(0xFF666666),
-                    textAlign = TextAlign.Center
-                )
             }
         }
     }
